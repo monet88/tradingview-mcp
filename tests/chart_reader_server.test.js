@@ -32,6 +32,18 @@ describe('Chart Reader Server Factory (Ticket 01)', () => {
       assert.ok(toolNames.includes('data_get_study_values'), 'includes data_get_study_values');
       assert.ok(toolNames.includes('quote_get'), 'includes quote_get');
 
+      // Every ChatGPT-facing tool advertises structured output metadata.
+      for (const tool of toolsResult.tools) {
+        assert.equal(tool.outputSchema?.type, 'object', tool.name + ' has object outputSchema');
+        assert.equal(tool.outputSchema?.properties?.success?.type, 'boolean', tool.name + ' describes success');
+      }
+
+      const toolsByName = Object.fromEntries(toolsResult.tools.map((tool) => [tool.name, tool]));
+      assert.equal(toolsByName.chart_get_state.outputSchema.properties.symbol.type, 'string');
+      assert.equal(toolsByName.data_get_ohlcv.outputSchema.properties.bars.type, 'array');
+      assert.equal(toolsByName.pane_list.outputSchema.properties.panes.type, 'array');
+      assert.equal(toolsByName.chart_snapshot_state.outputSchema.properties.snapshot.type, 'object');
+      assert.equal(toolsByName.capture_screenshot.outputSchema.properties.method.type, 'string');
       // Must NOT include tv_launch
       assert.equal(toolNames.includes('tv_launch'), false, 'must NOT include tv_launch');
     } finally {
@@ -55,6 +67,7 @@ describe('Chart Reader Server Factory (Ticket 01)', () => {
       const textItem = result.content?.find((c) => c.type === 'text');
       assert.ok(textItem, 'text content returned');
       const data = JSON.parse(textItem.text);
+      assert.deepEqual(result.structuredContent, data, 'structuredContent matches JSON text content');
       if (!data.success) {
         assert.ok(data.hint, 'contains a hint');
         assert.doesNotMatch(data.hint, /tv_launch/, 'hint must not instruct caller to use tv_launch');

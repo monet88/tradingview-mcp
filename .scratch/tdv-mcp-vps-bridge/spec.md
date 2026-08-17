@@ -42,6 +42,7 @@ The HTTP service starts even when CDP is unavailable. Tool calls that require Tr
 18. As the user, I want secrets supplied through deployment configuration rather than repository files, so that credentials are not committed or logged.
 19. As the user, I want the existing stdio transport to remain usable for local development and current tooling, so that adding VPS deployment does not force every workflow onto HTTP.
 20. As the user, I want the existing local OpenAI Secure MCP Tunnel setup preserved as a separate compatibility path unless explicitly retired, so that this feature does not silently remove a working local deployment option.
+21. As a ChatGPT user, I want every chart-reader tool to advertise an MCP `outputSchema` and return matching `structuredContent`, so that the client can understand structured results without changing existing input schemas or text content.
 
 ## Implementation Decisions
 
@@ -61,7 +62,7 @@ The HTTP service starts even when CDP is unavailable. Tool calls that require Tr
 - Preserve the current reconnect behavior of the CDP connection cache: failed liveness checks clear the stale client, and later calls attempt a fresh connection through the bridge.
 - Scope mutable chart-reader session state, especially saved chart snapshots, to the MCP session rather than a process-global singleton when serving multiple HTTP sessions.
 - Do not duplicate core chart, data, pane, screenshot, or health implementations in the HTTP adapter. Transport-specific code should only handle MCP session lifecycle, HTTP request handling, authentication integration, and shutdown.
-- Preserve existing tool schemas and result shapes for the chart-reader surface except where `tv_launch` disappears and health text changes to reflect manual startup.
+- Preserve existing input schemas and JSON result fields for the chart-reader surface except where `tv_launch` disappears and health text changes to reflect manual startup. Add MCP `outputSchema` metadata and matching `structuredContent` as an additive compatibility layer while retaining the existing JSON text content.
 - Keep secrets out of committed configuration and logs. Deployment examples must use environment-variable placeholders rather than live credentials.
 - Reverse-bridge process supervision is independent from MCP process supervision. A bridge restart must not require restarting the MCP server.
 - The remote service must shut down cleanly, close active MCP transports, and release HTTP resources without intentionally terminating TradingView on the PC.
@@ -74,6 +75,7 @@ The black-box suite must prove:
 
 - MCP `initialize` succeeds through the HTTP transport.
 - `tools/list` returns the intended chart-reader catalog and does not contain `tv_launch`.
+- Every advertised chart-reader tool has an object-root `outputSchema`, and representative calls return `structuredContent` matching the existing serialized JSON text result.
 - Representative `tools/call` requests traverse HTTP, the shared MCP registration, and the CDP connection layer rather than bypassing transport internals.
 - An unavailable CDP bridge returns a structured tool error and does not crash or terminate the HTTP MCP service.
 - After a failed call, making the CDP fixture/bridge available allows a later call to succeed without restarting the MCP process.

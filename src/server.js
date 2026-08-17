@@ -14,6 +14,7 @@ import { registerWatchlistTools } from './tools/watchlist.js';
 import { registerUiTools } from './tools/ui.js';
 import { registerPaneTools } from './tools/pane.js';
 import { registerTabTools } from './tools/tab.js';
+import { createOutputSchemaToolRegistrar } from './tools/_output.js';
 
 const server = new McpServer(
   {
@@ -69,21 +70,22 @@ CONTEXT MANAGEMENT:
   }
 );
 
-// Register all tool groups
-registerHealthTools(server);
-registerChartTools(server);
-registerPineTools(server);
-registerDataTools(server);
-registerCaptureTools(server);
-registerDrawingTools(server);
-registerAlertTools(server);
-registerBatchTools(server);
-registerReplayTools(server);
-registerIndicatorTools(server);
-registerWatchlistTools(server);
-registerUiTools(server);
-registerPaneTools(server);
-registerTabTools(server);
+// Register all tool groups with additive structured-output metadata.
+const tools = createOutputSchemaToolRegistrar(server);
+registerHealthTools(tools);
+registerChartTools(tools);
+registerPineTools(tools);
+registerDataTools(tools);
+registerCaptureTools(tools);
+registerDrawingTools(tools);
+registerAlertTools(tools);
+registerBatchTools(tools);
+registerReplayTools(tools);
+registerIndicatorTools(tools);
+registerWatchlistTools(tools);
+registerUiTools(tools);
+registerPaneTools(tools);
+registerTabTools(tools);
 
 // Startup notice (stderr so it doesn't interfere with MCP stdio protocol)
 process.stderr.write('⚠  tradingview-mcp  |  Unofficial tool. Not affiliated with TradingView Inc. or Anthropic.\n');

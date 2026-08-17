@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { evaluate } from './connection.js';
 import { jsonResult } from './tools/_format.js';
+import { createOutputSchemaToolRegistrar } from './tools/_output.js';
 import { registerHealthTools } from './tools/health.js';
 import { registerChartTools } from './tools/chart.js';
 import { registerDataTools } from './tools/data.js';
@@ -47,12 +48,13 @@ export function createChartReaderServer(options = {}) {
     ...options.serverConfig,
   });
 
-  registerHealthTools(server, { includeLaunch: false });
-  registerChartTools(server);
-  registerDataTools(server);
-  registerPaneTools(server);
+  const tools = createOutputSchemaToolRegistrar(server);
+  registerHealthTools(tools, { includeLaunch: false });
+  registerChartTools(tools);
+  registerDataTools(tools);
+  registerPaneTools(tools);
 
-  server.tool('chart_snapshot_state', 'Save current symbol, timeframe, chart type, and viewport before temporary navigation', {}, async () => {
+  tools.tool('chart_snapshot_state', 'Save current symbol, timeframe, chart type, and viewport before temporary navigation', {}, async () => {
     try {
       const [state, range, logicalRange] = await Promise.all([
         chartCore.getState(),
@@ -73,7 +75,7 @@ export function createChartReaderServer(options = {}) {
     }
   });
 
-  server.tool('chart_restore_state', 'Restore the most recently saved chart snapshot after temporary navigation', {
+  tools.tool('chart_restore_state', 'Restore the most recently saved chart snapshot after temporary navigation', {
     keep_snapshot: z.boolean().optional().describe('Keep snapshot after restore for reuse (default false)'),
   }, async ({ keep_snapshot }) => {
     try {
@@ -121,7 +123,7 @@ export function createChartReaderServer(options = {}) {
     }
   });
 
-  server.tool('capture_screenshot', 'Capture the TradingView chart and return the PNG inline for visual analysis', {
+  tools.tool('capture_screenshot', 'Capture the TradingView chart and return the PNG inline for visual analysis', {
     region: z.string().optional().describe('Region: full, chart, strategy_tester (default full)'),
     filename: z.string().optional().describe('Optional filename without extension'),
     method: z.string().optional().describe('Capture method: cdp or api (default cdp)'),
@@ -136,6 +138,7 @@ export function createChartReaderServer(options = {}) {
           { type: 'text', text: JSON.stringify(result, null, 2) },
           { type: 'image', data: png, mimeType: 'image/png' },
         ],
+        structuredContent: result,
       };
     } catch (err) {
       return jsonResult({ success: false, error: err.message }, true);
